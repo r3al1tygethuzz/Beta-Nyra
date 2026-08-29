@@ -387,7 +387,7 @@ N("TextLabel",{Size=UDim2.new(1,0,0,22),Position=UDim2.new(0,0,0,8),
     BackgroundTransparency=1,Text="Nyra",TextColor3=C.txt,TextSize=14,
     Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,Parent=Brand})
 N("TextLabel",{Size=UDim2.new(1,0,0,14),Position=UDim2.new(0,0,0,30),
-    BackgroundTransparency=1,Text="the best hard time script",TextColor3=C.txtDim,TextSize=9,
+    BackgroundTransparency=1,Text="the best hard time script",TextColor3=C.txtSub,TextSize=9,
     Font=Enum.Font.SourceSans,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,Parent=Brand})
 
 -- ════════════════════════════════════════════════════════════
@@ -2154,6 +2154,44 @@ local function tweenToPos(hrp, targetPos, speed)
 end
 
 -- ════════════════════════════════════════════════════════════
+--  AUTO INTERACT WITH PROMPTS AROUND PLAYER
+-- ════════════════════════════════════════════════════════════
+local function interactWithNearbyPrompts(promptObject)
+    -- Get the character's root part (used as origin for proximity search)
+    local char = LP.Character
+    if not char then return end
+    
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    local radius = 10 -- Search radius in studs
+    
+    -- Find all proximity prompts within range of the character
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") and (not promptObject or obj == promptObject) then
+            local promptPart = obj.Parent
+            if promptPart and promptPart:IsA("BasePart") then
+                -- Check if the prompt's parent part is within interaction radius
+                local distance = (promptPart.Position - hrp.Position).Magnitude
+                if distance <= radius then
+                    -- Trigger the prompt directly (using InputHoldBegin/InputHoldEnd)
+                    spawn(function()
+                        obj:InputHoldBegin()  -- Start holding
+                        wait(obj.HoldDuration) -- Wait for required duration
+                        obj:InputHoldEnd()    -- Release hold
+                    end)
+                    
+                    -- Exit early since we found a matching prompt object
+                    if promptObject then 
+                        break 
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- ════════════════════════════════════════════════════════════
 --  BANK FARM
 -- ════════════════════════════════════════════════════════════
 
@@ -2226,14 +2264,21 @@ local function bankIsOpen()
     return robberyReady("Bank")
 end
 
--- deliver to hotel: TP there, spam E for 5 s, then reset character
+-- deliver to hotel: TP there, auto-interact for 5 s, then reset character
 local function deliverAndReset()
     local char = LP.Character
     local hrp  = char and char:FindFirstChild("HumanoidRootPart")
     if hrp then
         hrp.CFrame = CFrame.new(HOTEL_POS.X, HOTEL_POS.Y, HOTEL_POS.Z)
         task.wait(0.5)
-        holdE(5.0)   -- spam E to deliver/collect at hotel
+        
+        -- Auto-interact with prompts at hotel for 5 seconds
+        local startTime = tick()
+        while tick() - startTime < 5 do
+            interactWithNearbyPrompts()
+            task.wait(0.1)
+        end
+        
         task.wait(0.3)
     end
     resetAndWait()
@@ -2275,7 +2320,10 @@ local function runBankLoop()
                 tweenToPos(hrp, pos)
             end
             task.wait(0.15)
-            holdE(1.5)   -- pick up cash bag
+            
+            -- Auto-interact with nearby prompts to pick up cash bags
+            interactWithNearbyPrompts()
+            task.wait(1.5)   -- Allow time for interaction
             task.wait(0.2)
             count = count + 1
 
@@ -2370,7 +2418,10 @@ local function runBinsLoop()
             local pos = BINS_COORDS[idx]
             tweenToPos(hrp, pos)
             task.wait(0.3)    -- settle
-            holdR(3.0)        -- hold R 3 s to loot bin
+            
+            -- Auto-interact with nearby prompts to loot bin
+            interactWithNearbyPrompts()
+            task.wait(3.0)        -- hold interaction
             task.wait(0.5)    -- brief gap before next TP
             count = count + 1
             -- reset every 2 bins
@@ -2389,7 +2440,7 @@ local function runBinsLoop()
     end
 end
 
--- ATM: TP → holdR 0.7s (rob) → holdE 0.7s (item 1) → holdE 0.7s (item 2) → reset every 2 ATMs
+-- ATM: TP → auto-interact to rob → auto-interact to collect items → reset every 2 ATMs
 local function runAtmLoop()
     local count = 0
     while Cfg.atmFarm do
@@ -2404,16 +2455,18 @@ local function runAtmLoop()
             tweenToPos(hrp, pos)
             task.wait(0.25)   -- settle
 
-            -- rob the ATM (hold R once — drops 2 items on the ground)
-            holdR(0.7)
-            task.wait(0.15)
-
-            -- collect item 1
-            holdEContinuous(0.7)
-            task.wait(0.12)
-
-            -- collect item 2
-            holdEContinuous(0.7)
+            -- rob the ATM (auto-interact with prompts)
+            interactWithNearbyPrompts()
+            task.wait(0.7) -- Interaction time
+            
+            -- Collect item 1
+            interactWithNearbyPrompts()
+            task.wait(0.7) -- Collection time
+            
+            -- Collect item 2 (same prompt often handles both in newer versions)
+            interactWithNearbyPrompts()
+            task.wait(0.7) -- Collection time
+            
             task.wait(0.2)
 
             count = count + 1
@@ -2443,7 +2496,14 @@ local function jewelryDeliverAndReset()
     if hrp then
         hrp.CFrame = CFrame.new(HOTEL_POS.X, HOTEL_POS.Y, HOTEL_POS.Z)
         task.wait(0.4)
-        holdEContinuous(4.5)   -- hold E long enough for full delivery animation
+        
+        -- Auto-interact with delivery prompts
+        local startTime = tick()
+        while tick() - startTime < 4.5 do
+            interactWithNearbyPrompts()
+            task.wait(0.1)
+        end
+        
         task.wait(0.3)
     end
     resetAndWait()
@@ -2479,7 +2539,10 @@ local function runJewelryLoop()
 
             tweenToPos(hrp, pos)
             task.wait(0.18)           -- settle before interacting
-            holdEContinuous(1.0)      -- smash/loot the case (1 s is enough)
+            
+            -- Auto-interact to smash/loot the case
+            interactWithNearbyPrompts()
+            task.wait(1.0)      -- interaction time
             task.wait(0.12)
             collected = collected + 1
 
@@ -2531,7 +2594,7 @@ local function runCasinoLoop()
         tweenToPos(hrp, CASINO_START_POS)
         task.wait(0.4)
 
-        -- tween between each slot, hold E at each, hotel+reset every 8
+        -- tween between each slot, auto-interact at each, hotel+reset every 8
         local casinoCount = 0
         for i, pos in ipairs(CASINO_COORDS) do
             if not Cfg.casinoFarm then break end
@@ -2546,9 +2609,14 @@ local function runCasinoLoop()
                 tweenToPos(hrp, pos)
             end
             task.wait(0.15)
-            pressKey(KEY_E)
-            task.wait(2.5)
-            releaseKey(KEY_E)
+            
+            -- Auto-interact with casino machines
+            local startTime = tick()
+            while tick() - startTime < 2.5 do
+                interactWithNearbyPrompts()
+                task.wait(0.1)
+            end
+            
             task.wait(0.2)
             casinoCount = casinoCount + 1
 
@@ -2559,9 +2627,14 @@ local function runCasinoLoop()
                 if h2 then
                     tweenToPos(h2, HOTEL_POS)
                     task.wait(0.3)
-                    pressKey(KEY_E)
-                    task.wait(4.0)
-                    releaseKey(KEY_E)
+                    
+                    -- Deliver casino winnings
+                    local startTime = tick()
+                    while tick() - startTime < 4.0 do
+                        interactWithNearbyPrompts()
+                        task.wait(0.1)
+                    end
+                    
                     task.wait(0.3)
                 end
                 resetAndWait()
@@ -2575,9 +2648,14 @@ local function runCasinoLoop()
         if h2 then
             tweenToPos(h2, HOTEL_POS)
             task.wait(0.3)
-            pressKey(KEY_E)
-            task.wait(4.0)
-            releaseKey(KEY_E)
+            
+            -- Final delivery after casino
+            local startTime = tick()
+            while tick() - startTime < 4.0 do
+                interactWithNearbyPrompts()
+                task.wait(0.1)
+            end
+            
             task.wait(0.3)
         end
         resetAndWait()
@@ -2643,7 +2721,7 @@ local function runGunpowderLoop()
         tweenToPos(hrp, GUNPOWDER_START)
         task.wait(0.4)
 
-        -- tween between each bag, hold E at each one
+        -- tween between each bag, auto-interact at each one
         local count = 0
         for i, pos in ipairs(GUNPOWDER_COORDS) do
             if not Cfg.gunpowderFarm then break end
@@ -2658,13 +2736,18 @@ local function runGunpowderLoop()
                 tweenToPos(hrp, pos)
             end
             task.wait(0.15)
-            pressKey(KEY_E)
-            task.wait(1.0)
-            releaseKey(KEY_E)
+            
+            -- Auto-interact with gunpowder bags
+            local startTime = tick()
+            while tick() - startTime < 1.0 do
+                interactWithNearbyPrompts()
+                task.wait(0.1)
+            end
+            
             task.wait(0.2)
             count = count + 1
 
-            -- every 8 bags: deliver to hotel, hold E, reset
+            -- every 8 bags: deliver to hotel, auto-interact, reset
             if count % 8 == 0 then
                 if not Cfg.gunpowderFarm then break end
                 local c2 = LP.Character
@@ -2672,9 +2755,14 @@ local function runGunpowderLoop()
                 if h2 then
                     tweenToPos(h2, HOTEL_POS)
                     task.wait(0.3)
-                    pressKey(KEY_E)
-                    task.wait(4.0)
-                    releaseKey(KEY_E)
+                    
+                    -- Deliver gunpowder
+                    local startTime = tick()
+                    while tick() - startTime < 4.0 do
+                        interactWithNearbyPrompts()
+                        task.wait(0.1)
+                    end
+                    
                     task.wait(0.3)
                 end
                 resetAndWait()
@@ -2688,9 +2776,14 @@ local function runGunpowderLoop()
         if h2 then
             tweenToPos(h2, HOTEL_POS)
             task.wait(0.3)
-            pressKey(KEY_E)
-            task.wait(4.0)
-            releaseKey(KEY_E)
+            
+            -- Final gunpowder delivery
+            local startTime = tick()
+            while tick() - startTime < 4.0 do
+                interactWithNearbyPrompts()
+                task.wait(0.1)
+            end
+            
             task.wait(0.3)
         end
         resetAndWait()
