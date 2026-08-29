@@ -739,644 +739,644 @@ local function clearTabs()
     for _,c in ipairs(TabRow:GetChildren()) do
         if not c:IsA("UIListLayout") then c:Destroy() end
     end
-end
 
--- tab button builder
-local tabBtns = {}
-local function buildTabs(tabDefs)
-    clearTabs(); tabBtns={}
-    for idx,td in ipairs(tabDefs) do
-        local b = N("TextButton",{Size=UDim2.new(0,0,1,0),AutomaticSize=Enum.AutomaticSize.X,
-            BackgroundColor3=C.tab,BorderSizePixel=0,
-            Text=td.name,TextColor3=C.txtSub,TextSize=10,Font=Enum.Font.SourceSans,
-            ZIndex=6,LayoutOrder=idx,Parent=TabRow})
-        cr(6,b); pd(10,10,0,0,b)
-        td.btn=b; tabBtns[td.name]=td
-        b.MouseEnter:Connect(function()
-            if activeTabName~=td.name then twSnap(b,0.08,{BackgroundColor3=C.tabSel}) end
+    -- tab button builder
+    local tabBtns = {}
+    local function buildTabs(tabDefs)
+        clearTabs(); tabBtns={}
+        for idx,td in ipairs(tabDefs) do
+            local b = N("TextButton",{Size=UDim2.new(0,0,1,0),AutomaticSize=Enum.AutomaticSize.X,
+                BackgroundColor3=C.tab,BorderSizePixel=0,
+                Text=td.name,TextColor3=C.txtSub,TextSize=10,Font=Enum.Font.SourceSans,
+                ZIndex=6,LayoutOrder=idx,Parent=TabRow})
+            cr(6,b); pd(10,10,0,0,b)
+            td.btn=b; tabBtns[td.name]=td
+            b.MouseEnter:Connect(function()
+                if activeTabName~=td.name then twSnap(b,0.08,{BackgroundColor3=C.tabSel}) end
+            end)
+            b.MouseLeave:Connect(function()
+                if activeTabName~=td.name then twSnap(b,0.10,{BackgroundColor3=C.tab}) end
+            end)
+            b.MouseButton1Click:Connect(function()
+                -- flash the clicked tab
+                twFlash(b,{BackgroundColor3=C.white},{BackgroundColor3=C.tabSel},0.05)
+                task.delay(0.12,function()
+                    for _,t in pairs(tabBtns) do
+                        twSnap(t.btn,0.12,{BackgroundColor3=C.tab}); t.btn.TextColor3=C.txtSub; t.btn.Font=Enum.Font.SourceSans
+                    end
+                    twSnap(b,0.12,{BackgroundColor3=C.tabSel}); b.TextColor3=C.white; b.Font=Enum.Font.SourceSansSemibold
+                    activeTabName=td.name
+                    clearRight()
+                    if td.build then td.build(RightInner) end
+                end)
+            end)
+        end
+        -- activate first tab
+        if tabDefs[1] then
+            local t=tabDefs[1]
+            t.btn.BackgroundColor3=C.tabSel; t.btn.TextColor3=C.white; t.btn.Font=Enum.Font.SourceSansSemibold
+            activeTabName=t.name; clearRight()
+            if t.build then t.build(RightInner) end
+        end
+    end
+
+    -- sidebar group label
+    local function sbGroup(title, lo)
+        local f = N("Frame",{Size=UDim2.new(1,0,0,24),BackgroundTransparency=1,ZIndex=4,LayoutOrder=lo,Parent=SbInner})
+        N("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text=title,
+            TextColor3=C.txtDim,TextSize=9,Font=Enum.Font.GothamBold,
+            TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,Parent=f})
+        return f
+    end
+
+    -- sidebar item card
+    local function sbItem(title, lo, onSelect)
+        local card = N("TextButton",{Size=UDim2.new(1,0,0,36),BackgroundColor3=C.card,
+            BorderSizePixel=0,Text="",ZIndex=4,LayoutOrder=lo,Parent=SbInner})
+        cr(8,card)
+        -- left accent bar (hidden when not selected)
+        local accent = N("Frame",{Size=UDim2.new(0,2,0.6,0),AnchorPoint=Vector2.new(0,0.5),
+            Position=UDim2.new(0,0,0.5,0),BackgroundColor3=C.white,BackgroundTransparency=1,
+            BorderSizePixel=0,ZIndex=6,Parent=card})
+        cr(1,accent)
+        local lbl = N("TextLabel",{Size=UDim2.new(1,0,1,0),Position=UDim2.new(0,14,0,0),
+            BackgroundTransparency=1,Text=title,TextColor3=C.txt,TextSize=11,
+            Font=Enum.Font.SourceSansSemibold,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,Parent=card})
+        card.MouseEnter:Connect(function()
+            if activeItem~=title then
+                twSnap(card,0.10,{BackgroundColor3=C.cardHov})
+                twSnap(lbl, 0.10,{TextColor3=C.white})
+            end
         end)
-        b.MouseLeave:Connect(function()
-            if activeTabName~=td.name then twSnap(b,0.10,{BackgroundColor3=C.tab}) end
+        card.MouseLeave:Connect(function()
+            if activeItem~=title then
+                twSnap(card,0.12,{BackgroundColor3=C.card})
+                twSnap(lbl, 0.12,{TextColor3=C.txt})
+                twSnap(accent,0.12,{BackgroundTransparency=1})
+            end
         end)
-        b.MouseButton1Click:Connect(function()
-            -- flash the clicked tab
-            twFlash(b,{BackgroundColor3=C.white},{BackgroundColor3=C.tabSel},0.05)
-            task.delay(0.12,function()
-                for _,t in pairs(tabBtns) do
-                    twSnap(t.btn,0.12,{BackgroundColor3=C.tab}); t.btn.TextColor3=C.txtSub; t.btn.Font=Enum.Font.SourceSans
+        card.MouseButton1Click:Connect(function()
+            if activeItem==title then return end
+            -- flash press
+            twFlash(card,{BackgroundColor3=C.white},{BackgroundColor3=C.tabSel},0.06)
+            task.delay(0.13,function()
+                activeItem=title
+                for _,c in ipairs(SbInner:GetChildren()) do
+                    if c:IsA("TextButton") then
+                        twSnap(c,0.12,{BackgroundColor3=C.card})
+                        -- hide accent on all other cards
+                        local ac=c:FindFirstChild("Frame")
+                        if ac then twSnap(ac,0.12,{BackgroundTransparency=1}) end
+                        -- dim labels
+                        local lb=c:FindFirstChildWhichIsA("TextLabel")
+                        if lb then twSnap(lb,0.12,{TextColor3=C.txt}) end
+                    end
                 end
-                twSnap(b,0.12,{BackgroundColor3=C.tabSel}); b.TextColor3=C.white; b.Font=Enum.Font.SourceSansSemibold
-                activeTabName=td.name
-                clearRight()
-                if td.build then td.build(RightInner) end
+                twSnap(card,0.12,{BackgroundColor3=C.tabSel})
+                twSnap(accent,0.15,{BackgroundTransparency=0})
+                twSnap(lbl,0.12,{TextColor3=C.white})
+                onSelect()
             end)
         end)
+        return card, lbl
     end
-    -- activate first tab
-    if tabDefs[1] then
-        local t=tabDefs[1]
-        t.btn.BackgroundColor3=C.tabSel; t.btn.TextColor3=C.white; t.btn.Font=Enum.Font.SourceSansSemibold
-        activeTabName=t.name; clearRight()
-        if t.build then t.build(RightInner) end
+
+    -- ════════════════════════════════════════════════════════════
+    --  PAGE DEFINITIONS
+    -- ════════════════════════════════════════════════════════════
+
+    -- helper: spacer between section groups
+    local function sp(parent,h,lo)
+        N("Frame",{Size=UDim2.new(1,0,0,h),BackgroundTransparency=1,ZIndex=3,LayoutOrder=lo,Parent=parent})
     end
-end
 
--- sidebar group label
-local function sbGroup(title, lo)
-    local f = N("Frame",{Size=UDim2.new(1,0,0,24),BackgroundTransparency=1,ZIndex=4,LayoutOrder=lo,Parent=SbInner})
-    N("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text=title,
-        TextColor3=C.txtDim,TextSize=9,Font=Enum.Font.GothamBold,
-        TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,Parent=f})
-    return f
-end
+    ------------------------------------------------------------------
+    --  COMBAT → Aimbot
+    ------------------------------------------------------------------
+    local function selectAimbot()
+        MidTitle.Text="Aim Assistance"
+        MidDesc.Text="Improves precision, recoil control, and target tracking"
 
--- sidebar item card
-local function sbItem(title, lo, onSelect)
-    local card = N("TextButton",{Size=UDim2.new(1,0,0,36),BackgroundColor3=C.card,
-        BorderSizePixel=0,Text="",ZIndex=4,LayoutOrder=lo,Parent=SbInner})
-    cr(8,card)
-    -- left accent bar (hidden when not selected)
-    local accent = N("Frame",{Size=UDim2.new(0,2,0.6,0),AnchorPoint=Vector2.new(0,0.5),
-        Position=UDim2.new(0,0,0.5,0),BackgroundColor3=C.white,BackgroundTransparency=1,
-        BorderSizePixel=0,ZIndex=6,Parent=card})
-    cr(1,accent)
-    local lbl = N("TextLabel",{Size=UDim2.new(1,0,1,0),Position=UDim2.new(0,14,0,0),
-        BackgroundTransparency=1,Text=title,TextColor3=C.txt,TextSize=11,
-        Font=Enum.Font.SourceSansSemibold,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,Parent=card})
-    card.MouseEnter:Connect(function()
-        if activeItem~=title then
-            twSnap(card,0.10,{BackgroundColor3=C.cardHov})
-            twSnap(lbl, 0.10,{TextColor3=C.white})
-        end
-    end)
-    card.MouseLeave:Connect(function()
-        if activeItem~=title then
-            twSnap(card,0.12,{BackgroundColor3=C.card})
-            twSnap(lbl, 0.12,{TextColor3=C.txt})
-            twSnap(accent,0.12,{BackgroundTransparency=1})
-        end
-    end)
-    card.MouseButton1Click:Connect(function()
-        if activeItem==title then return end
-        -- flash press
-        twFlash(card,{BackgroundColor3=C.white},{BackgroundColor3=C.tabSel},0.06)
-        task.delay(0.13,function()
-            activeItem=title
-            for _,c in ipairs(SbInner:GetChildren()) do
-                if c:IsA("TextButton") then
-                    twSnap(c,0.12,{BackgroundColor3=C.card})
-                    -- hide accent on all other cards
-                    local ac=c:FindFirstChild("Frame")
-                    if ac then twSnap(ac,0.12,{BackgroundTransparency=1}) end
-                    -- dim labels
-                    local lb=c:FindFirstChildWhichIsA("TextLabel")
-                    if lb then twSnap(lb,0.12,{TextColor3=C.txt}) end
-                end
-            end
-            twSnap(card,0.12,{BackgroundColor3=C.tabSel})
-            twSnap(accent,0.15,{BackgroundTransparency=0})
-            twSnap(lbl,0.12,{TextColor3=C.white})
-            onSelect()
-        end)
-    end)
-    return card, lbl
-end
+        buildTabs({
+            { name="General", build=function(P)
+                secLabel(P,"Master",1)
+                mkToggle(P,"Enable Aimbot","Activates aimbot targeting","aimbotEnabled",2)
+                secLabel(P,"Filtering",3)
+                mkToggle(P,"Team Check","Skip teammates","aimbotTeamCheck",4)
+                mkToggle(P,"Visibility Check","Only aim at visible targets","aimbotVisCheck",5)
+                mkToggle(P,"Target Lock","Stay locked on current target until lost","aimbotTargetLock",6)
+                secLabel(P,"Targeting",7)
+                mkDrop(P,"Target Part","Body part to aim at",{"Head","HumanoidRootPart","UpperTorso","Torso"},"aimbotPart",8)
+                mkSlider(P,"Field of View","Targeting radius in pixels","aimbotFOV",10,500,"%.0f px",9)
+                mkSlider(P,"Smoothness","Lower = snappier  |  Higher = smoother","aimbotSmooth",0.01,1.0,"%.2f",10)
+                secLabel(P,"FOV Circle",11)
+                mkToggle(P,"Show FOV Circle","Renders aimbot FOV ring on screen","aimbotFOVCircle",12)
+            end},
+            { name="Prediction", build=function(P)
+                secLabel(P,"Velocity Prediction",1)
+                mkToggle(P,"Enable Prediction","Lead targets based on velocity","aimbotPrediction",2)
+                mkSlider(P,"Prediction Multiplier","Higher = further lead","aimbotPredMult",0.01,1.0,"%.2f",3)
+                secLabel(P,"Info",4)
+                mkInfo(P,"Projectile Speed","~800 studs/s assumed",5)
+                mkInfo(P,"Tip","Raise multiplier if shots fall short",6)
+            end},
+            { name="Keybind", build=function(P)
+                secLabel(P,"Trigger",1)
+                mkDrop(P,"Aimbot Key","Key to activate aimbot",{"MouseButton2","E","Q","LeftShift","X","F"},"aimbotKey",2)
+                mkToggle(P,"Hold Mode","Hold key to aim, release to stop","aimbotHold",3)
+            end},
+        })
+    end
 
--- ════════════════════════════════════════════════════════════
---  PAGE DEFINITIONS
--- ════════════════════════════════════════════════════════════
+    ------------------------------------------------------------------
+    --  COMBAT → Silent Aim
+    ------------------------------------------------------------------
+    local function selectSilent()
+        MidTitle.Text="Silent Aim"
+        MidDesc.Text="Redirects bullets to the nearest target without moving camera"
 
--- helper: spacer between section groups
-local function sp(parent,h,lo)
-    N("Frame",{Size=UDim2.new(1,0,0,h),BackgroundTransparency=1,ZIndex=3,LayoutOrder=lo,Parent=parent})
-end
+        buildTabs({
+            { name="General", build=function(P)
+                secLabel(P,"Master",1)
+                mkToggle(P,"Enable Silent Aim","Redirects bullets to nearest target","silentEnabled",2)
+                secLabel(P,"Filtering",3)
+                mkToggle(P,"Team Check","Skip teammates","silentTeamCheck",4)
+                mkSlider(P,"FOV","Targeting radius in pixels","silentFOV",10,500,"%.0f px",5)
+                secLabel(P,"Targeting",6)
+                mkDrop(P,"Target Part","Body part bullets redirect to",{"Head","HumanoidRootPart","UpperTorso","Torso"},"silentPart",7)
+            end},
+            { name="Hooks", build=function(P)
+                secLabel(P,"Ray API Hooks",1)
+                mkToggle(P,"Legacy Hitscan","Hook FindPartOnRay (older games)","silentHitscan",2)
+                mkToggle(P,"Modern Raycast","Hook Workspace:Raycast (most games)","silentRaycast",3)
+                secLabel(P,"Info",4)
+                mkInfo(P,"Coverage","Both hooks active = maximum compatibility",5)
+            end},
+            { name="Keybind", build=function(P)
+                secLabel(P,"Trigger",1)
+                mkDrop(P,"Silent Aim Key","Key to activate silent aim",{"MouseButton2","E","Q","LeftShift","X","F"},"silentKey",2)
+                mkToggle(P,"Hold Mode","Hold key to aim, release to stop","silentHold",3)
+                secLabel(P,"Info",4)
+                mkInfo(P,"Note","Silent key is independent of aimbot key",5)
+            end},
+        })
+    end
 
-------------------------------------------------------------------
---  COMBAT → Aimbot
-------------------------------------------------------------------
-local function selectAimbot()
-    MidTitle.Text="Aim Assistance"
-    MidDesc.Text="Improves precision, recoil control, and target tracking"
+    ------------------------------------------------------------------
+    --  COMBAT → Anti-Aim + Exploits
+    ------------------------------------------------------------------
+    local function selectAntiAim()
+        MidTitle.Text="Anti-Aim & Exploits"
+        MidDesc.Text="Desync, wallbang, hitbox expansion and more"
 
-    buildTabs({
-        { name="General", build=function(P)
-            secLabel(P,"Master",1)
-            mkToggle(P,"Enable Aimbot","Activates aimbot targeting","aimbotEnabled",2)
-            secLabel(P,"Filtering",3)
-            mkToggle(P,"Team Check","Skip teammates","aimbotTeamCheck",4)
-            mkToggle(P,"Visibility Check","Only aim at visible targets","aimbotVisCheck",5)
-            mkToggle(P,"Target Lock","Stay locked on current target until lost","aimbotTargetLock",6)
-            secLabel(P,"Targeting",7)
-            mkDrop(P,"Target Part","Body part to aim at",{"Head","HumanoidRootPart","UpperTorso","Torso"},"aimbotPart",8)
-            mkSlider(P,"Field of View","Targeting radius in pixels","aimbotFOV",10,500,"%.0f px",9)
-            mkSlider(P,"Smoothness","Lower = snappier  |  Higher = smoother","aimbotSmooth",0.01,1.0,"%.2f",10)
-            secLabel(P,"FOV Circle",11)
-            mkToggle(P,"Show FOV Circle","Renders aimbot FOV ring on screen","aimbotFOVCircle",12)
-        end},
-        { name="Prediction", build=function(P)
-            secLabel(P,"Velocity Prediction",1)
-            mkToggle(P,"Enable Prediction","Lead targets based on velocity","aimbotPrediction",2)
-            mkSlider(P,"Prediction Multiplier","Higher = further lead","aimbotPredMult",0.01,1.0,"%.2f",3)
-            secLabel(P,"Info",4)
-            mkInfo(P,"Projectile Speed","~800 studs/s assumed",5)
-            mkInfo(P,"Tip","Raise multiplier if shots fall short",6)
-        end},
-        { name="Keybind", build=function(P)
-            secLabel(P,"Trigger",1)
-            mkDrop(P,"Aimbot Key","Key to activate aimbot",{"MouseButton2","E","Q","LeftShift","X","F"},"aimbotKey",2)
-            mkToggle(P,"Hold Mode","Hold key to aim, release to stop","aimbotHold",3)
-        end},
-    })
-end
+        buildTabs({
+            { name="Anti-Aim", build=function(P)
+                secLabel(P,"Rotation Desync",1)
+                mkToggle(P,"Enable Anti-Aim","Desync your character rotation","antiAimEnabled",2)
+                mkDrop(P,"Mode","Rotation behaviour",{"Spin","Jitter","Static","360"},"antiAimMode",3)
+                mkSlider(P,"Speed","Rotation speed multiplier","antiAimSpeed",1,25,"%.0f",4)
+            end},
+            { name="Wallbang", build=function(P)
+                secLabel(P,"Wallbang",1)
+                mkToggle(P,"Enable Wallbang","Makes your character non-collidable so bullets/rays pass through walls","wallbangEnabled",2)
+                secLabel(P,"Info",3)
+                mkInfo(P,"Effect","Character parts set CanCollide=false",4)
+                mkInfo(P,"Note","Also allows walking through thin walls",5)
+            end},
+            { name="Hitbox", build=function(P)
+                secLabel(P,"Hitbox Expander",1)
+                mkToggle(P,"Enable Hitbox","Inflates enemy HumanoidRootPart size","hitboxEnabled",2)
+                mkSlider(P,"Expand Size","Extra studs added to enemy HRP","hitboxSize",1,20,"%.0f st",3)
+                secLabel(P,"Info",4)
+                mkInfo(P,"Effect","Larger hitbox = easier to register hits",5)
+            end},
+            { name="Exploits", build=function(P)
+                secLabel(P,"Fake Lag",1)
+                mkToggle(P,"Enable Fake Lag","Throttles position updates to desync","fakeLagEnabled",2)
+                mkSlider(P,"Strength","Frames skipped per update","fakeLagStrength",1,20,"%.0f",3)
+                secLabel(P,"Rapid Fire",4)
+                mkToggle(P,"Enable Rapid Fire","Reduces tool activation cooldown to near-zero","rapidFireEnabled",5)
+                secLabel(P,"Info",6)
+                mkInfo(P,"Note","Rapid Fire works on tools with GripForward trigger",7)
+            end},
+        })
+    end
 
-------------------------------------------------------------------
---  COMBAT → Silent Aim
-------------------------------------------------------------------
-local function selectSilent()
-    MidTitle.Text="Silent Aim"
-    MidDesc.Text="Redirects bullets to the nearest target without moving camera"
+    ------------------------------------------------------------------
+    --  VISUALS → ESP
+    ------------------------------------------------------------------
+    local function selectESP()
+        MidTitle.Text="Extra Sensory Perception"
+        MidDesc.Text="Draws overlays on players through walls and distance"
 
-    buildTabs({
-        { name="General", build=function(P)
-            secLabel(P,"Master",1)
-            mkToggle(P,"Enable Silent Aim","Redirects bullets to nearest target","silentEnabled",2)
-            secLabel(P,"Filtering",3)
-            mkToggle(P,"Team Check","Skip teammates","silentTeamCheck",4)
-            mkSlider(P,"FOV","Targeting radius in pixels","silentFOV",10,500,"%.0f px",5)
-            secLabel(P,"Targeting",6)
-            mkDrop(P,"Target Part","Body part bullets redirect to",{"Head","HumanoidRootPart","UpperTorso","Torso"},"silentPart",7)
-        end},
-        { name="Hooks", build=function(P)
-            secLabel(P,"Ray API Hooks",1)
-            mkToggle(P,"Legacy Hitscan","Hook FindPartOnRay (older games)","silentHitscan",2)
-            mkToggle(P,"Modern Raycast","Hook Workspace:Raycast (most games)","silentRaycast",3)
-            secLabel(P,"Info",4)
-            mkInfo(P,"Coverage","Both hooks active = maximum compatibility",5)
-        end},
-        { name="Keybind", build=function(P)
-            secLabel(P,"Trigger",1)
-            mkDrop(P,"Silent Aim Key","Key to activate silent aim",{"MouseButton2","E","Q","LeftShift","X","F"},"silentKey",2)
-            mkToggle(P,"Hold Mode","Hold key to aim, release to stop","silentHold",3)
-            secLabel(P,"Info",4)
-            mkInfo(P,"Note","Silent key is independent of aimbot key",5)
-        end},
-    })
-end
+        buildTabs({
+            { name="General", build=function(P)
+                secLabel(P,"Toggle",1)
+                mkToggle(P,"Enable ESP","Master switch for all overlays","espEnabled",2)
+                secLabel(P,"Overlays",3)
+                mkToggle(P,"Bounding Boxes","2D box around players","espBoxes",4)
+                mkToggle(P,"Names","Show player name above","espNames",5)
+                mkToggle(P,"Health Bar","HP bar beside box","espHealth",6)
+                mkToggle(P,"Distance","Stud distance below name","espDistance",7)
+                mkToggle(P,"Tracers","Line from screen edge to player","espTracers",8)
+                mkToggle(P,"Skeleton","Bone skeleton overlay","espSkeleton",9)
+                mkToggle(P,"Team Color","Tint by team color","espTeamColor",10)
+                secLabel(P,"Range",11)
+                mkSlider(P,"Max Distance","Hide ESP beyond this range","espMaxDist",100,3000,"%.0f",12)
+            end},
+        })
+    end
 
-------------------------------------------------------------------
---  COMBAT → Anti-Aim + Exploits
-------------------------------------------------------------------
-local function selectAntiAim()
-    MidTitle.Text="Anti-Aim & Exploits"
-    MidDesc.Text="Desync, wallbang, hitbox expansion and more"
+    ------------------------------------------------------------------
+    --  VISUALS → Chams
+    ------------------------------------------------------------------
+    local function selectChams()
+        MidTitle.Text="Chams"
+        MidDesc.Text="Make player models glow through walls"
 
-    buildTabs({
-        { name="Anti-Aim", build=function(P)
-            secLabel(P,"Rotation Desync",1)
-            mkToggle(P,"Enable Anti-Aim","Desync your character rotation","antiAimEnabled",2)
-            mkDrop(P,"Mode","Rotation behaviour",{"Spin","Jitter","Static","360"},"antiAimMode",3)
-            mkSlider(P,"Speed","Rotation speed multiplier","antiAimSpeed",1,25,"%.0f",4)
-        end},
-        { name="Wallbang", build=function(P)
-            secLabel(P,"Wallbang",1)
-            mkToggle(P,"Enable Wallbang","Makes your character non-collidable so bullets/rays pass through walls to hit you","wallbangEnabled",2)
-            secLabel(P,"Info",3)
-            mkInfo(P,"Effect","Character parts set CanCollide=false",4)
-            mkInfo(P,"Note","Also allows walking through thin walls",5)
-        end},
-        { name="Hitbox", build=function(P)
-            secLabel(P,"Hitbox Expander",1)
-            mkToggle(P,"Enable Hitbox","Inflates enemy HumanoidRootPart size","hitboxEnabled",2)
-            mkSlider(P,"Expand Size","Extra studs added to enemy HRP","hitboxSize",1,20,"%.0f st",3)
-            secLabel(P,"Info",4)
-            mkInfo(P,"Effect","Larger hitbox = easier to register hits",5)
-        end},
-        { name="Exploits", build=function(P)
-            secLabel(P,"Fake Lag",1)
-            mkToggle(P,"Enable Fake Lag","Throttles position updates to desync","fakeLagEnabled",2)
-            mkSlider(P,"Strength","Frames skipped per update","fakeLagStrength",1,20,"%.0f",3)
-            secLabel(P,"Rapid Fire",4)
-            mkToggle(P,"Enable Rapid Fire","Reduces tool activation cooldown to near-zero","rapidFireEnabled",5)
-            secLabel(P,"Info",6)
-            mkInfo(P,"Note","Rapid Fire works on tools with GripForward trigger",7)
-        end},
-    })
-end
+        buildTabs({
+            { name="General", build=function(P)
+                secLabel(P,"Toggle",1)
+                mkToggle(P,"Enable Chams","Neon material on enemy models","chamsEnabled",2)
+                mkSlider(P,"Transparency","Model see-through amount","chamsTransp",0,0.98,"%.2f",3)
+            end},
+        })
+    end
 
-------------------------------------------------------------------
---  VISUALS → ESP
-------------------------------------------------------------------
-local function selectESP()
-    MidTitle.Text="Extra Sensory Perception"
-    MidDesc.Text="Draws overlays on players through walls and distance"
+    ------------------------------------------------------------------
+    --  VISUALS → Crosshair
+    ------------------------------------------------------------------
+    local function selectCrosshair()
+        MidTitle.Text="Crosshair Overlay"
+        MidDesc.Text="Custom crosshair drawn over the screen via Drawing API"
 
-    buildTabs({
-        { name="General", build=function(P)
-            secLabel(P,"Toggle",1)
-            mkToggle(P,"Enable ESP","Master switch for all overlays","espEnabled",2)
-            secLabel(P,"Overlays",3)
-            mkToggle(P,"Bounding Boxes","2D box around players","espBoxes",4)
-            mkToggle(P,"Names","Show player name above","espNames",5)
-            mkToggle(P,"Health Bar","HP bar beside box","espHealth",6)
-            mkToggle(P,"Distance","Stud distance below name","espDistance",7)
-            mkToggle(P,"Tracers","Line from screen edge to player","espTracers",8)
-            mkToggle(P,"Skeleton","Bone skeleton overlay","espSkeleton",9)
-            mkToggle(P,"Team Color","Tint by team color","espTeamColor",10)
-            secLabel(P,"Range",11)
-            mkSlider(P,"Max Distance","Hide ESP beyond this range","espMaxDist",100,3000,"%.0f",12)
-        end},
-    })
-end
+        buildTabs({
+            { name="General", build=function(P)
+                secLabel(P,"Toggle",1)
+                mkToggle(P,"Enable Crosshair","Draw custom crosshair on screen","crosshairEnabled",2)
+                secLabel(P,"Style",3)
+                mkDrop(P,"Style","Shape of the crosshair",{"Cross","Dot","Circle"},"crosshairStyle",4)
+                secLabel(P,"Dimensions",5)
+                mkSlider(P,"Size","Length of each arm (Cross) or radius (Circle)","crosshairSize",2,40,"%.0f px",6)
+                mkSlider(P,"Gap","Space between centre and arms","crosshairGap",0,20,"%.0f px",7)
+                mkSlider(P,"Thickness","Line width","crosshairThick",1,6,"%.0f px",8)
+            end},
+        })
+    end
 
-------------------------------------------------------------------
---  VISUALS → Chams
-------------------------------------------------------------------
-local function selectChams()
-    MidTitle.Text="Chams"
-    MidDesc.Text="Make player models glow through walls"
+    ------------------------------------------------------------------
+    --  MISC → Fly / Speed / Noclip / InfJump / Velocity HUD
+    ------------------------------------------------------------------
+    local function selectMisc()
+        MidTitle.Text="World Manipulation"
+        MidDesc.Text="Movement cheats and physics overrides"
 
-    buildTabs({
-        { name="General", build=function(P)
-            secLabel(P,"Toggle",1)
-            mkToggle(P,"Enable Chams","Neon material on enemy models","chamsEnabled",2)
-            mkSlider(P,"Transparency","Model see-through amount","chamsTransp",0,0.98,"%.2f",3)
-        end},
-    })
-end
+        buildTabs({
+            { name="Movement", build=function(P)
+                secLabel(P,"Fly",1)
+                mkStatusToggle(P,"Enable Fly","WASD + Space/Ctrl camera-relative fly","flyEnabled",2)
+                mkSlider(P,"Fly Speed","Units per second","flySpeed",5,250,"%.0f",3)
+                secLabel(P,"Walk",4)
+                mkStatusToggle(P,"Walk Speed Override","Enable custom walk speed","walkSpeedEnabled",5)
+                mkSlider(P,"Walk Speed","Base walk speed (default 16)","walkSpeed",2,100,"%.0f",6)
+                secLabel(P,"Other",7)
+                mkStatusToggle(P,"Noclip","Walk through walls","noclipEnabled",8)
+                mkStatusToggle(P,"Infinite Jump","Jump again mid-air","infJumpEnabled",9)
+            end},
+            { name="Velocity HUD", build=function(P)
+                secLabel(P,"Velocity Display",1)
+                mkToggle(P,"Enable Velocity HUD","Shows current speed in studs/s on screen","velHudEnabled",2)
+                mkInfo(P,"Display","Bottom-center of screen",3)
+                mkInfo(P,"Format","XZ speed  |  Y speed",4)
+            end},
+        })
+    end
 
-------------------------------------------------------------------
---  VISUALS → Crosshair
-------------------------------------------------------------------
-local function selectCrosshair()
-    MidTitle.Text="Crosshair Overlay"
-    MidDesc.Text="Custom crosshair drawn over the screen via Drawing API"
+    ------------------------------------------------------------------
+    --  MISC → Teleport
+    ------------------------------------------------------------------
+    local TP_LOCATIONS = {
+        { name="Casino",            pos=Vector3.new(-1159, 4, -673) },
+        { name="Tacos",             pos=Vector3.new(-1009, 2, -136) },
+        { name="Gun Store 1",       pos=Vector3.new(-1183, 2, -452) },
+        { name="Pawn Shop",         pos=Vector3.new(-1293, 2, -846) },
+        { name="Country Vehicles",  pos=Vector3.new(-1155, 3, -963) },
+        { name="Gunpowder",         pos=Vector3.new(-918,  2, -975) },
+        { name="Firework Launcher", pos=Vector3.new(-812,  3, -822) },
+        { name="Jewelry",           pos=Vector3.new(-627,  3, -643) },
+        { name="Gun Store 2",       pos=Vector3.new(-609,  2, -78)  },
+        { name="Bank",              pos=Vector3.new(-800,  2, -50)  },
+        { name="Luxury Cars",       pos=Vector3.new(-794,  3, -314) },
+        { name="Juggernaut",        pos=Vector3.new(-69,   4, -79)  },
+    }
 
-    buildTabs({
-        { name="General", build=function(P)
-            secLabel(P,"Toggle",1)
-            mkToggle(P,"Enable Crosshair","Draw custom crosshair on screen","crosshairEnabled",2)
-            secLabel(P,"Style",3)
-            mkDrop(P,"Style","Shape of the crosshair",{"Cross","Dot","Circle"},"crosshairStyle",4)
-            secLabel(P,"Dimensions",5)
-            mkSlider(P,"Size","Length of each arm (Cross) or radius (Circle)","crosshairSize",2,40,"%.0f px",6)
-            mkSlider(P,"Gap","Space between centre and arms","crosshairGap",0,20,"%.0f px",7)
-            mkSlider(P,"Thickness","Line width","crosshairThick",1,6,"%.0f px",8)
-        end},
-    })
-end
+    local function selectTeleport()
+        MidTitle.Text="Teleport"
+        MidDesc.Text="Instantly move to any location on the map"
 
-------------------------------------------------------------------
---  MISC → Fly / Speed / Noclip / InfJump / Velocity HUD
-------------------------------------------------------------------
-local function selectMisc()
-    MidTitle.Text="World Manipulation"
-    MidDesc.Text="Movement cheats and physics overrides"
+        buildTabs({
+            { name="Locations", build=function(P)
+                secLabel(P,"Locations",1)
+                for i, loc in ipairs(TP_LOCATIONS) do
+                    local row = N("Frame",{
+                        Size=UDim2.new(1,0,0,40),
+                        BackgroundColor3=C.row, BorderSizePixel=0,
+                        ZIndex=4, LayoutOrder=i+1, Parent=P
+                    })
+                    cr(8,row)
 
-    buildTabs({
-        { name="Movement", build=function(P)
-            secLabel(P,"Fly",1)
-            mkStatusToggle(P,"Enable Fly","WASD + Space/Ctrl camera-relative fly","flyEnabled",2)
-            mkSlider(P,"Fly Speed","Units per second","flySpeed",5,250,"%.0f",3)
-            secLabel(P,"Walk",4)
-            mkStatusToggle(P,"Walk Speed Override","Enable custom walk speed","walkSpeedEnabled",5)
-            mkSlider(P,"Walk Speed","Base walk speed (default 16)","walkSpeed",2,100,"%.0f",6)
-            secLabel(P,"Other",7)
-            mkStatusToggle(P,"Noclip","Walk through walls","noclipEnabled",8)
-            mkStatusToggle(P,"Infinite Jump","Jump again mid-air","infJumpEnabled",9)
-        end},
-        { name="Velocity HUD", build=function(P)
-            secLabel(P,"Velocity Display",1)
-            mkToggle(P,"Enable Velocity HUD","Shows current speed in studs/s on screen","velHudEnabled",2)
-            mkInfo(P,"Display","Bottom-center of screen",3)
-            mkInfo(P,"Format","XZ speed  |  Y speed",4)
-        end},
-    })
-end
+                    -- left accent bar
+                    local ac = N("Frame",{
+                        Size=UDim2.new(0,2,0.55,0), AnchorPoint=Vector2.new(0,0.5),
+                        Position=UDim2.new(0,0,0.5,0),
+                        BackgroundColor3=C.white, BackgroundTransparency=1,
+                        BorderSizePixel=0, ZIndex=6, Parent=row
+                    })
+                    cr(1,ac)
 
-------------------------------------------------------------------
---  MISC → Teleport
-------------------------------------------------------------------
-local TP_LOCATIONS = {
-    { name="Casino",            pos=Vector3.new(-1159, 4, -673) },
-    { name="Tacos",             pos=Vector3.new(-1009, 2, -136) },
-    { name="Gun Store 1",       pos=Vector3.new(-1183, 2, -452) },
-    { name="Pawn Shop",         pos=Vector3.new(-1293, 2, -846) },
-    { name="Country Vehicles",  pos=Vector3.new(-1155, 3, -963) },
-    { name="Gunpowder",         pos=Vector3.new(-918,  2, -975) },
-    { name="Firework Launcher", pos=Vector3.new(-812,  3, -822) },
-    { name="Jewelry",           pos=Vector3.new(-627,  3, -643) },
-    { name="Gun Store 2",       pos=Vector3.new(-609,  2, -78)  },
-    { name="Bank",              pos=Vector3.new(-800,  2, -50)  },
-    { name="Luxury Cars",       pos=Vector3.new(-794,  3, -314) },
-    { name="Juggernaut",        pos=Vector3.new(-69,   4, -79)  },
-}
+                    -- name
+                    N("TextLabel",{
+                        Size=UDim2.new(1,-110,1,0), Position=UDim2.new(0,14,0,0),
+                        BackgroundTransparency=1, Text=loc.name,
+                        TextColor3=C.txt, TextSize=12,
+                        Font=Enum.Font.SourceSansSemibold,
+                        TextXAlignment=Enum.TextXAlignment.Left,
+                        ZIndex=5, Parent=row
+                    })
 
-local function selectTeleport()
-    MidTitle.Text="Teleport"
-    MidDesc.Text="Instantly move to any location on the map"
+                    -- teleport button
+                    local btn = N("TextButton",{
+                        Size=UDim2.new(0,70,0,26),
+                        AnchorPoint=Vector2.new(1,0.5),
+                        Position=UDim2.new(1,-8,0.5,0),
+                        BackgroundColor3=C.card, BorderSizePixel=0,
+                        Text="Teleport", TextColor3=C.txt,
+                        TextSize=10, Font=Enum.Font.SourceSansSemibold,
+                        ZIndex=6, Parent=row
+                    })
+                    cr(6,btn); sk(C.border,1,btn)
 
-    buildTabs({
-        { name="Locations", build=function(P)
-            secLabel(P,"Locations",1)
-            for i, loc in ipairs(TP_LOCATIONS) do
-                local row = N("Frame",{
-                    Size=UDim2.new(1,0,0,40),
-                    BackgroundColor3=C.row, BorderSizePixel=0,
-                    ZIndex=4, LayoutOrder=i+1, Parent=P
-                })
-                cr(8,row)
+                    row.MouseEnter:Connect(function()
+                        twSnap(row,0.10,{BackgroundColor3=C.rowHov})
+                        twSnap(ac, 0.10,{BackgroundTransparency=0.5})
+                    end)
+                    row.MouseLeave:Connect(function()
+                        twSnap(row,0.12,{BackgroundColor3=C.row})
+                        twSnap(ac, 0.12,{BackgroundTransparency=1})
+                    end)
+                    btn.MouseEnter:Connect(function() twSnap(btn,0.08,{BackgroundColor3=C.cardHov}) end)
+                    btn.MouseLeave:Connect(function() twSnap(btn,0.10,{BackgroundColor3=C.card}) end)
 
-                -- left accent bar
-                local ac = N("Frame",{
-                    Size=UDim2.new(0,2,0.55,0), AnchorPoint=Vector2.new(0,0.5),
-                    Position=UDim2.new(0,0,0.5,0),
-                    BackgroundColor3=C.white, BackgroundTransparency=1,
-                    BorderSizePixel=0, ZIndex=6, Parent=row
-                })
-                cr(1,ac)
-
-                -- name
-                N("TextLabel",{
-                    Size=UDim2.new(1,-110,1,0), Position=UDim2.new(0,14,0,0),
-                    BackgroundTransparency=1, Text=loc.name,
-                    TextColor3=C.txt, TextSize=12,
-                    Font=Enum.Font.SourceSansSemibold,
-                    TextXAlignment=Enum.TextXAlignment.Left,
-                    ZIndex=5, Parent=row
-                })
-
-                -- teleport button
-                local btn = N("TextButton",{
-                    Size=UDim2.new(0,70,0,26),
-                    AnchorPoint=Vector2.new(1,0.5),
-                    Position=UDim2.new(1,-8,0.5,0),
-                    BackgroundColor3=C.card, BorderSizePixel=0,
-                    Text="Teleport", TextColor3=C.txt,
-                    TextSize=10, Font=Enum.Font.SourceSansSemibold,
-                    ZIndex=6, Parent=row
-                })
-                cr(6,btn); sk(C.border,1,btn)
-
-                row.MouseEnter:Connect(function()
-                    twSnap(row,0.10,{BackgroundColor3=C.rowHov})
-                    twSnap(ac, 0.10,{BackgroundTransparency=0.5})
-                end)
-                row.MouseLeave:Connect(function()
-                    twSnap(row,0.12,{BackgroundColor3=C.row})
-                    twSnap(ac, 0.12,{BackgroundTransparency=1})
-                end)
-                btn.MouseEnter:Connect(function() twSnap(btn,0.08,{BackgroundColor3=C.cardHov}) end)
-                btn.MouseLeave:Connect(function() twSnap(btn,0.10,{BackgroundColor3=C.card}) end)
-
-                local tpPos = loc.pos
-                btn.MouseButton1Click:Connect(function()
-                    twSnap(ac,0.04,{BackgroundTransparency=0})
-                    twFlash(btn,
-                        {BackgroundColor3=C.white,  TextColor3=C.bg},
-                        {BackgroundColor3=C.cardHov, TextColor3=C.txt}, 0.07)
-                    task.delay(0.10, function()
-                        twSnap(ac,0.14,{BackgroundTransparency=1})
-                        pcall(function()
-                            local char = LP.Character
-                            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-                            if hrp then
-                                hrp.CFrame = CFrame.new(tpPos.X, tpPos.Y, tpPos.Z)
-                            end
+                    local tpPos = loc.pos
+                    btn.MouseButton1Click:Connect(function()
+                        twSnap(ac,0.04,{BackgroundTransparency=0})
+                        twFlash(btn,
+                            {BackgroundColor3=C.white,  TextColor3=C.bg},
+                            {BackgroundColor3=C.cardHov, TextColor3=C.txt}, 0.07)
+                        task.delay(0.10, function()
+                            twSnap(ac,0.14,{BackgroundTransparency=1})
+                            pcall(function()
+                                local char = LP.Character
+                                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                                if hrp then
+                                    hrp.CFrame = CFrame.new(tpPos.X, tpPos.Y, tpPos.Z)
+                                end
+                            end)
                         end)
                     end)
+                end
+            end},
+        })
+    end
+
+    ------------------------------------------------------------------
+    --  FARMS
+    ------------------------------------------------------------------
+    local function selectFarms()
+        MidTitle.Text="Auto Farms"
+        MidDesc.Text="Automatically collect money from various sources"
+
+        buildTabs({
+            { name="Farms", build=function(P)
+                secLabel(P,"AFK",1)
+                mkToggle(P,"Anti-AFK Farm","Hides underground, auto-runs bank/casino/jewelry when ready","antiAfkEnabled",2)
+                secLabel(P,"Money",3)
+                mkToggle(P,"Bank Farm","Auto-rob the bank repeatedly","bankFarm",4)
+                mkToggle(P,"ATM Farm","Holds R at each ATM underground","atmFarm",5)
+                mkToggle(P,"Casino Farm","Holds E at each casino spot underground","casinoFarm",6)
+                mkToggle(P,"Bins Farm","Holds R at each bin underground","binsFarm",7)
+                mkToggle(P,"Jewelry Farm","Holds E at each jewelry display underground","jewelryFarm",8)
+                mkToggle(P,"Gunpowder Farm","Auto-collect and sell gunpowder","gunpowderFarm",9)
+                secLabel(P,"Settings",10)
+                mkSlider(P,"Farm Tween Speed","Studs/s for farm movements (slow start, constant)","farmTweenSpeed",10,50,"%.0f",11)
+                mkToggle(P,"Auto Rejoin","Rejoin server on kick and resume farms","autoRejoinEnabled",12)
+            end},
+        })
+    end
+
+    ------------------------------------------------------------------
+    --  PLAYERS
+    ------------------------------------------------------------------
+    local function selectPlayers()
+        MidTitle.Text="Player Options"
+        MidDesc.Text="Interact with online players"
+
+        buildTabs({
+            { name="Players", build=function(P)
+                -- Stop Spectate button (global, always visible)
+                secLabel(P,"Spectate",1)
+                local stopRow = N("Frame",{Size=UDim2.new(1,0,0,44),BackgroundColor3=C.row,
+                    BorderSizePixel=0,ZIndex=4,LayoutOrder=2,Parent=P})
+                cr(8,stopRow)
+                N("TextLabel",{Size=UDim2.new(0.6,0,1,0),Position=UDim2.new(0,14,0,0),
+                    BackgroundTransparency=1,Text="Stop Spectating",TextColor3=C.txt,TextSize=12,
+                    Font=Enum.Font.SourceSansSemibold,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,Parent=stopRow})
+                N("TextLabel",{Size=UDim2.new(0.6,0,0,13),Position=UDim2.new(0,14,0,26),
+                    BackgroundTransparency=1,Text="Return camera to your character",TextColor3=C.txtSub,TextSize=9,
+                    Font=Enum.Font.SourceSans,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,Parent=stopRow})
+                local stopBtn = N("TextButton",{Size=UDim2.new(0,100,0,26),AnchorPoint=Vector2.new(1,0.5),
+                    Position=UDim2.new(1,-14,0.5,0),BackgroundColor3=C.card,BorderSizePixel=0,
+                    Text="Stop Spectate",TextColor3=C.txt,TextSize=10,Font=Enum.Font.SourceSansSemibold,ZIndex=5,Parent=stopRow})
+                cr(6,stopBtn); sk(C.border,1,stopBtn)
+                stopBtn.MouseButton1Click:Connect(function()
+                    pcall(function()
+                        local char=LP.Character
+                        local hum=char and char:FindFirstChildWhichIsA("Humanoid")
+                        Camera.CameraSubject=hum or (char and char:FindFirstChild("HumanoidRootPart"))
+                    end)
                 end)
-            end
-        end},
-    })
-end
+                stopBtn.MouseEnter:Connect(function() tw(stopBtn,0.08,{BackgroundColor3=C.cardHov}) end)
+                stopBtn.MouseLeave:Connect(function() tw(stopBtn,0.08,{BackgroundColor3=C.card}) end)
+                stopRow.MouseEnter:Connect(function() tw(stopRow,0.08,{BackgroundColor3=C.rowHov}) end)
+                stopRow.MouseLeave:Connect(function() tw(stopRow,0.08,{BackgroundColor3=C.row}) end)
 
-------------------------------------------------------------------
---  FARMS
-------------------------------------------------------------------
-local function selectFarms()
-    MidTitle.Text="Auto Farms"
-    MidDesc.Text="Automatically collect money from various sources"
+                secLabel(P,"Actions",3)
+                -- dynamic player list
+                local lo=4
+                for _,p in ipairs(Players:GetPlayers()) do
+                    if p==LP then continue end
+                    -- player action row (expanded height to fit note input)
+                    local prow = N("Frame",{Size=UDim2.new(1,0,0,80),BackgroundColor3=C.row,
+                        BorderSizePixel=0,ZIndex=4,LayoutOrder=lo,Parent=P})
+                    cr(8,prow)
+                    N("TextLabel",{Size=UDim2.new(0.45,0,0,20),Position=UDim2.new(0,14,0,6),
+                        BackgroundTransparency=1,Text=p.Name,TextColor3=C.txt,TextSize=11,
+                        Font=Enum.Font.SourceSansSemibold,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,Parent=prow})
 
-    buildTabs({
-        { name="Farms", build=function(P)
-            secLabel(P,"AFK",1)
-            mkToggle(P,"Anti-AFK Farm","Hides underground, auto-runs bank/casino/jewelry when ready","antiAfkEnabled",2)
-            secLabel(P,"Money",3)
-            mkToggle(P,"Bank Farm","Auto-rob the bank repeatedly","bankFarm",4)
-            mkToggle(P,"ATM Farm","Holds R at each ATM underground","atmFarm",5)
-            mkToggle(P,"Casino Farm","Holds E at each casino spot underground","casinoFarm",6)
-            mkToggle(P,"Bins Farm","Holds R at each bin underground","binsFarm",7)
-            mkToggle(P,"Jewelry Farm","Holds E at each jewelry display underground","jewelryFarm",8)
-            mkToggle(P,"Gunpowder Farm","Auto-collect and sell gunpowder","gunpowderFarm",9)
-            secLabel(P,"Settings",10)
-            mkSlider(P,"Farm Tween Speed","Studs/s for farm movements (slow start, constant)","farmTweenSpeed",10,50,"%.0f",11)
-            mkToggle(P,"Auto Rejoin","Rejoin server on kick and resume farms","autoRejoinEnabled",12)
-        end},
-    })
-end
+                    -- action buttons (top-right)
+                    local btnFrame = N("Frame",{Size=UDim2.new(0.52,0,0,28),AnchorPoint=Vector2.new(1,0),
+                        Position=UDim2.new(1,-8,0,8),BackgroundTransparency=1,ZIndex=5,Parent=prow})
+                    hl(4,btnFrame)
 
-------------------------------------------------------------------
---  PLAYERS
-------------------------------------------------------------------
-local function selectPlayers()
-    MidTitle.Text="Player Options"
-    MidDesc.Text="Interact with online players"
+                    local function mkAct(lbText, clr, action)
+                        local b = N("TextButton",{Size=UDim2.new(0,0,1,0),AutomaticSize=Enum.AutomaticSize.X,
+                            BackgroundColor3=clr,BorderSizePixel=0,Text=lbText,TextColor3=C.white,
+                            TextSize=9,Font=Enum.Font.SourceSansSemibold,ZIndex=6,Parent=btnFrame})
+                        cr(5,b); pd(6,6,0,0,b)
+                        -- hover: lighten
+                        local hovClr = Color3.new(
+                            math.min(clr.R+0.12,1),
+                            math.min(clr.G+0.12,1),
+                            math.min(clr.B+0.12,1)
+                        )
+                        b.MouseEnter:Connect(function() twSnap(b,0.08,{BackgroundColor3=hovClr}) end)
+                        b.MouseLeave:Connect(function() twSnap(b,0.10,{BackgroundColor3=clr}) end)
+                        b.MouseButton1Click:Connect(function()
+                            twFlash(b,{BackgroundColor3=C.white},{BackgroundColor3=hovClr},0.06)
+                            task.delay(0.13,function() pcall(action) end)
+                        end)
+                    end
 
-    buildTabs({
-        { name="Players", build=function(P)
-            -- Stop Spectate button (global, always visible)
-            secLabel(P,"Spectate",1)
-            local stopRow = N("Frame",{Size=UDim2.new(1,0,0,44),BackgroundColor3=C.row,
-                BorderSizePixel=0,ZIndex=4,LayoutOrder=2,Parent=P})
-            cr(8,stopRow)
-            N("TextLabel",{Size=UDim2.new(0.6,0,1,0),Position=UDim2.new(0,14,0,0),
-                BackgroundTransparency=1,Text="Stop Spectating",TextColor3=C.txt,TextSize=12,
-                Font=Enum.Font.SourceSansSemibold,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,Parent=stopRow})
-            N("TextLabel",{Size=UDim2.new(0.6,0,0,13),Position=UDim2.new(0,14,0,26),
-                BackgroundTransparency=1,Text="Return camera to your character",TextColor3=C.txtSub,TextSize=9,
-                Font=Enum.Font.SourceSans,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,Parent=stopRow})
-            local stopBtn = N("TextButton",{Size=UDim2.new(0,100,0,26),AnchorPoint=Vector2.new(1,0.5),
-                Position=UDim2.new(1,-14,0.5,0),BackgroundColor3=C.card,BorderSizePixel=0,
-                Text="Stop Spectate",TextColor3=C.txt,TextSize=10,Font=Enum.Font.SourceSansSemibold,ZIndex=5,Parent=stopRow})
-            cr(6,stopBtn); sk(C.border,1,stopBtn)
-            stopBtn.MouseButton1Click:Connect(function()
-                pcall(function()
-                    local char=LP.Character
-                    local hum=char and char:FindFirstChildWhichIsA("Humanoid")
-                    Camera.CameraSubject=hum or (char and char:FindFirstChild("HumanoidRootPart"))
-                end)
-            end)
-            stopBtn.MouseEnter:Connect(function() tw(stopBtn,0.08,{BackgroundColor3=C.cardHov}) end)
-            stopBtn.MouseLeave:Connect(function() tw(stopBtn,0.08,{BackgroundColor3=C.card}) end)
-            stopRow.MouseEnter:Connect(function() tw(stopRow,0.08,{BackgroundColor3=C.rowHov}) end)
-            stopRow.MouseLeave:Connect(function() tw(stopRow,0.08,{BackgroundColor3=C.row}) end)
+                    -- Spectate
+                    mkAct("Spectate",Color3.fromRGB(60,60,70),function()
+                        local char=p.Character; if not char then return end
+                        local hrp=char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
+                        Camera.CameraSubject=char:FindFirstChildWhichIsA("Humanoid") or hrp
+                    end)
+                    -- TP to
+                    mkAct("TP",Color3.fromRGB(40,80,60),function()
+                        local char=LP.Character; if not char then return end
+                        local lhrp=char:FindFirstChild("HumanoidRootPart"); if not lhrp then return end
+                        local thr=p.Character and p.Character:FindFirstChild("HumanoidRootPart"); if not thr then return end
+                        lhrp.CFrame=thr.CFrame+Vector3.new(3,0,0)
+                    end)
+                    -- Gun Kill
+                    mkAct("Gun Kill",Color3.fromRGB(100,30,30),function()
+                        local hum=p.Character and p.Character:FindFirstChildWhichIsA("Humanoid"); if not hum then return end
+                        hum.Health=0
+                    end)
+                    -- Fist Kill
+                    mkAct("Fist Kill",Color3.fromRGB(80,50,20),function()
+                        local hum=p.Character and p.Character:FindFirstChildWhichIsA("Humanoid"); if not hum then return end
+                        hum:TakeDamage(hum.MaxHealth)
+                    end)
 
-            secLabel(P,"Actions",3)
-            -- dynamic player list
-            local lo=4
-            for _,p in ipairs(Players:GetPlayers()) do
-                if p==LP then continue end
-                -- player action row (expanded height to fit note input)
-                local prow = N("Frame",{Size=UDim2.new(1,0,0,80),BackgroundColor3=C.row,
-                    BorderSizePixel=0,ZIndex=4,LayoutOrder=lo,Parent=P})
-                cr(8,prow)
-                N("TextLabel",{Size=UDim2.new(0.45,0,0,20),Position=UDim2.new(0,14,0,6),
-                    BackgroundTransparency=1,Text=p.Name,TextColor3=C.txt,TextSize=11,
-                    Font=Enum.Font.SourceSansSemibold,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,Parent=prow})
+                    -- Note input (bottom of player row)
+                    local noteBox = N("TextBox",{
+                        Size=UDim2.new(1,-28,0,22),Position=UDim2.new(0,14,0,50),
+                        BackgroundColor3=C.card,BorderSizePixel=0,
+                        Text=Cfg.playerNotes[p.Name] or "",
+                        PlaceholderText="Add a note about "..p.Name.."...",
+                        TextColor3=C.txt,PlaceholderColor3=C.txtDim,
+                        TextSize=9,Font=Enum.Font.SourceSans,
+                        TextXAlignment=Enum.TextXAlignment.Left,
+                        ClearTextOnFocus=false,ZIndex=5,Parent=prow})
+                    cr(4,noteBox); sk(C.borderLo,1,noteBox); pd(6,6,0,0,noteBox)
+                    noteBox.FocusLost:Connect(function()
+                        Cfg.playerNotes[p.Name]=noteBox.Text
+                    end)
 
-                -- action buttons (top-right)
-                local btnFrame = N("Frame",{Size=UDim2.new(0.52,0,0,28),AnchorPoint=Vector2.new(1,0),
-                    Position=UDim2.new(1,-8,0,8),BackgroundTransparency=1,ZIndex=5,Parent=prow})
-                hl(4,btnFrame)
+                    prow.MouseEnter:Connect(function() tw(prow,0.08,{BackgroundColor3=C.rowHov}) end)
+                    prow.MouseLeave:Connect(function() tw(prow,0.08,{BackgroundColor3=C.row}) end)
 
-                local function mkAct(lbText, clr, action)
-                    local b = N("TextButton",{Size=UDim2.new(0,0,1,0),AutomaticSize=Enum.AutomaticSize.X,
-                        BackgroundColor3=clr,BorderSizePixel=0,Text=lbText,TextColor3=C.white,
-                        TextSize=9,Font=Enum.Font.SourceSansSemibold,ZIndex=6,Parent=btnFrame})
-                    cr(5,b); pd(6,6,0,0,b)
-                    -- hover: lighten
-                    local hovClr = Color3.new(
-                        math.min(clr.R+0.12,1),
-                        math.min(clr.G+0.12,1),
-                        math.min(clr.B+0.12,1)
-                    )
-                    b.MouseEnter:Connect(function() twSnap(b,0.08,{BackgroundColor3=hovClr}) end)
-                    b.MouseLeave:Connect(function() twSnap(b,0.10,{BackgroundColor3=clr}) end)
+                    lo=lo+1
+                end
+                if lo==4 then
+                    secLabel(P,"No other players online",4)
+                end
+            end},
+        })
+    end
+
+    ------------------------------------------------------------------
+    --  SETTINGS
+    ------------------------------------------------------------------
+    local function selectSettings()
+        MidTitle.Text="Global Settings"
+        MidDesc.Text="Keybinds, colors and preferences"
+
+        buildTabs({
+            { name="Keybinds", build=function(P)
+                secLabel(P,"UI",1)
+                mkInfo(P,"Toggle Window","Z key",2)
+                secLabel(P,"Combat",3)
+                mkDrop(P,"Aimbot Key",nil,{"MouseButton2","E","Q","LeftShift","X"},"aimbotKey",4)
+            end},
+            { name="Colours", build=function(P)
+                secLabel(P,"Accent",1)
+                -- color swatch row
+                local swrow = N("Frame",{Size=UDim2.new(1,0,0,44),BackgroundColor3=C.row,
+                    BorderSizePixel=0,ZIndex=4,LayoutOrder=2,Parent=P})
+                cr(8,swrow)
+                N("TextLabel",{Size=UDim2.new(0.4,0,1,0),Position=UDim2.new(0,14,0,0),
+                    BackgroundTransparency=1,Text="Accent Color",TextColor3=C.txt,TextSize=12,
+                    Font=Enum.Font.SourceSansSemibold,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,Parent=swrow})
+                local colors={Color3.fromRGB(255,255,255),Color3.fromRGB(220,50,50),Color3.fromRGB(50,150,220),Color3.fromRGB(80,200,120),Color3.fromRGB(200,130,50),Color3.fromRGB(150,80,220)}
+                local sw = N("Frame",{Size=UDim2.new(0.55,0,0,26),AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-14,0.5,0),BackgroundTransparency=1,ZIndex=5,Parent=swrow})
+                hl(6,sw)
+                for _,col in ipairs(colors) do
+                    local b=N("TextButton",{Size=UDim2.new(0,26,0,26),BackgroundColor3=col,BorderSizePixel=0,Text="",ZIndex=6,Parent=sw})
+                    cr(5,b)
                     b.MouseButton1Click:Connect(function()
-                        twFlash(b,{BackgroundColor3=C.white},{BackgroundColor3=hovClr},0.06)
-                        task.delay(0.13,function() pcall(action) end)
+                        Cfg.accentColor=col
+                        -- update toggle-on color and slider fill live
+                        C.togOn=col; C.sldFill=col
                     end)
                 end
+            end},
+        })
+    end
 
-                -- Spectate
-                mkAct("Spectate",Color3.fromRGB(60,60,70),function()
-                    local char=p.Character; if not char then return end
-                    local hrp=char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
-                    Camera.CameraSubject=char:FindFirstChildWhichIsA("Humanoid") or hrp
-                end)
-                -- TP to
-                mkAct("TP",Color3.fromRGB(40,80,60),function()
-                    local char=LP.Character; if not char then return end
-                    local lhrp=char:FindFirstChild("HumanoidRootPart"); if not lhrp then return end
-                    local thr=p.Character and p.Character:FindFirstChild("HumanoidRootPart"); if not thr then return end
-                    lhrp.CFrame=thr.CFrame+Vector3.new(3,0,0)
-                end)
-                -- Gun Kill
-                mkAct("Gun Kill",Color3.fromRGB(100,30,30),function()
-                    local hum=p.Character and p.Character:FindFirstChildWhichIsA("Humanoid"); if not hum then return end
-                    hum.Health=0
-                end)
-                -- Fist Kill
-                mkAct("Fist Kill",Color3.fromRGB(80,50,20),function()
-                    local hum=p.Character and p.Character:FindFirstChildWhichIsA("Humanoid"); if not hum then return end
-                    hum:TakeDamage(hum.MaxHealth)
-                end)
+    -- ════════════════════════════════════════════════════════════
+    --  BUILD SIDEBAR GROUPS
+    -- ════════════════════════════════════════════════════════════
+    sbGroup("Combat",1)
+    sbItem("Aim Assistance",2, selectAimbot)
+    sbItem("Silent Aim",3,     selectSilent)
+    sbItem("Anti-Aim",4,       selectAntiAim)
 
-                -- Note input (bottom of player row)
-                local noteBox = N("TextBox",{
-                    Size=UDim2.new(1,-28,0,22),Position=UDim2.new(0,14,0,50),
-                    BackgroundColor3=C.card,BorderSizePixel=0,
-                    Text=Cfg.playerNotes[p.Name] or "",
-                    PlaceholderText="Add a note about "..p.Name.."...",
-                    TextColor3=C.txt,PlaceholderColor3=C.txtDim,
-                    TextSize=9,Font=Enum.Font.SourceSans,
-                    TextXAlignment=Enum.TextXAlignment.Left,
-                    ClearTextOnFocus=false,ZIndex=5,Parent=prow})
-                cr(4,noteBox); sk(C.borderLo,1,noteBox); pd(6,6,0,0,noteBox)
-                noteBox.FocusLost:Connect(function()
-                    Cfg.playerNotes[p.Name]=noteBox.Text
-                end)
+    sp(SbInner,4,5)
+    sbGroup("Visuals",6)
+    sbItem("ESP",7,       selectESP)
+    sbItem("Chams",8,     selectChams)
+    sbItem("Crosshair",9, selectCrosshair)
 
-                prow.MouseEnter:Connect(function() tw(prow,0.08,{BackgroundColor3=C.rowHov}) end)
-                prow.MouseLeave:Connect(function() tw(prow,0.08,{BackgroundColor3=C.row}) end)
+    sp(SbInner,4,10)
+    sbGroup("Misc",11)
+    sbItem("World Manipulation",12, selectMisc)
+    sbItem("Teleport",13,           selectTeleport)
 
-                lo=lo+1
-            end
-            if lo==4 then
-                secLabel(P,"No other players online",4)
-            end
-        end},
-    })
-end
+    sp(SbInner,4,14)
+    sbGroup("Farms",15)
+    sbItem("Auto Farms",16,     selectFarms)
 
-------------------------------------------------------------------
---  SETTINGS
-------------------------------------------------------------------
-local function selectSettings()
-    MidTitle.Text="Global Settings"
-    MidDesc.Text="Keybinds, colors and preferences"
+    sp(SbInner,4,17)
+    sbGroup("Players",18)
+    sbItem("Player Actions",19, selectPlayers)
 
-    buildTabs({
-        { name="Keybinds", build=function(P)
-            secLabel(P,"UI",1)
-            mkInfo(P,"Toggle Window","Z key",2)
-            secLabel(P,"Combat",3)
-            mkDrop(P,"Aimbot Key",nil,{"MouseButton2","E","Q","LeftShift","X"},"aimbotKey",4)
-        end},
-        { name="Colours", build=function(P)
-            secLabel(P,"Accent",1)
-            -- color swatch row
-            local swrow = N("Frame",{Size=UDim2.new(1,0,0,44),BackgroundColor3=C.row,
-                BorderSizePixel=0,ZIndex=4,LayoutOrder=2,Parent=P})
-            cr(8,swrow)
-            N("TextLabel",{Size=UDim2.new(0.4,0,1,0),Position=UDim2.new(0,14,0,0),
-                BackgroundTransparency=1,Text="Accent Color",TextColor3=C.txt,TextSize=12,
-                Font=Enum.Font.SourceSansSemibold,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,Parent=swrow})
-            local colors={Color3.fromRGB(255,255,255),Color3.fromRGB(220,50,50),Color3.fromRGB(50,150,220),Color3.fromRGB(80,200,120),Color3.fromRGB(200,130,50),Color3.fromRGB(150,80,220)}
-            local sw = N("Frame",{Size=UDim2.new(0.55,0,0,26),AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-14,0.5,0),BackgroundTransparency=1,ZIndex=5,Parent=swrow})
-            hl(6,sw)
-            for _,col in ipairs(colors) do
-                local b=N("TextButton",{Size=UDim2.new(0,26,0,26),BackgroundColor3=col,BorderSizePixel=0,Text="",ZIndex=6,Parent=sw})
-                cr(5,b)
-                b.MouseButton1Click:Connect(function()
-                    Cfg.accentColor=col
-                    -- update toggle-on color and slider fill live
-                    C.togOn=col; C.sldFill=col
-                end)
-            end
-        end},
-    })
-end
+    sp(SbInner,4,20)
+    sbGroup("Settings",21)
+    sbItem("Global",22,         selectSettings)
 
--- ════════════════════════════════════════════════════════════
---  BUILD SIDEBAR GROUPS
--- ════════════════════════════════════════════════════════════
-sbGroup("Combat",1)
-sbItem("Aim Assistance",2, selectAimbot)
-sbItem("Silent Aim",3,     selectSilent)
-sbItem("Anti-Aim",4,       selectAntiAim)
-
-sp(SbInner,4,5)
-sbGroup("Visuals",6)
-sbItem("ESP",7,       selectESP)
-sbItem("Chams",8,     selectChams)
-sbItem("Crosshair",9, selectCrosshair)
-
-sp(SbInner,4,10)
-sbGroup("Misc",11)
-sbItem("World Manipulation",12, selectMisc)
-sbItem("Teleport",13,           selectTeleport)
-
-sp(SbInner,4,14)
-sbGroup("Farms",15)
-sbItem("Auto Farms",16,     selectFarms)
-
-sp(SbInner,4,17)
-sbGroup("Players",18)
-sbItem("Player Actions",19, selectPlayers)
-
-sp(SbInner,4,20)
-sbGroup("Settings",21)
-sbItem("Global",22,         selectSettings)
-
--- boot: select first item
-selectAimbot()
--- mark Aim Assistance card as active visually
-do
-    local cards={}
-    for _,c in ipairs(SbInner:GetChildren()) do if c:IsA("TextButton") then table.insert(cards,c) end end
-    if cards[1] then cards[1].BackgroundColor3=C.tabSel end
-    activeItem="Aim Assistance"
+    -- boot: select first item
+    selectAimbot()
+    -- mark Aim Assistance card as active visually
+    do
+        local cards={}
+        for _,c in ipairs(SbInner:GetChildren()) do if c:IsA("TextButton") then table.insert(cards,c) end end
+        if cards[1] then cards[1].BackgroundColor3=C.tabSel end
+        activeItem="Aim Assistance"
+    end
 end
 
 -- ════════════════════════════════════════════════════════════
@@ -2156,7 +2156,7 @@ end
 -- ════════════════════════════════════════════════════════════
 --  AUTO INTERACT WITH PROMPTS AROUND PLAYER
 -- ════════════════════════════════════════════════════════════
-local function interactWithNearbyPrompts(promptObject)
+local function interactWithNearbyPrompts()
     -- Get the character's root part (used as origin for proximity search)
     local char = LP.Character
     if not char then return end
@@ -2164,11 +2164,11 @@ local function interactWithNearbyPrompts(promptObject)
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     
-    local radius = 10 -- Search radius in studs
+    local radius = 15 -- Increased search radius in studs
     
     -- Find all proximity prompts within range of the character
     for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("ProximityPrompt") and (not promptObject or obj == promptObject) then
+        if obj:IsA("ProximityPrompt") then
             local promptPart = obj.Parent
             if promptPart and promptPart:IsA("BasePart") then
                 -- Check if the prompt's parent part is within interaction radius
@@ -2176,15 +2176,11 @@ local function interactWithNearbyPrompts(promptObject)
                 if distance <= radius then
                     -- Trigger the prompt directly (using InputHoldBegin/InputHoldEnd)
                     spawn(function()
+                        print("[DEBUG] Interacting with prompt:", obj.Name, "at distance:", distance)
                         obj:InputHoldBegin()  -- Start holding
                         wait(obj.HoldDuration) -- Wait for required duration
                         obj:InputHoldEnd()    -- Release hold
                     end)
-                    
-                    -- Exit early since we found a matching prompt object
-                    if promptObject then 
-                        break 
-                    end
                 end
             end
         end
@@ -2246,26 +2242,50 @@ end
 local function robberyReady(childName)
     local ok, result = pcall(function()
         local head = Workspace.Buttons.StartRobbery.Head
+        if not head then 
+            print("[DEBUG] StartRobbery.Head not found")
+            return true 
+        end
+        
         -- try exact name first, then case-insensitive fallback
         local part = head:FindFirstChild(childName)
         if not part then
             local lower = childName:lower()
             for _, c in ipairs(head:GetChildren()) do
-                if c.Name:lower() == lower then part = c; break end
+                if c.Name:lower() == lower then 
+                    part = c
+                    print("[DEBUG] Found part by case-insensitive match:", c.Name)
+                    break 
+                end
             end
         end
-        if not part then return true end  -- can't find button, assume open so farm doesn't hang
-        return head.BrickColor ~= BrickColor.new("Bright red")
+        
+        if not part then 
+            print("[DEBUG] Could not find robbery part:", childName)
+            return true -- assume open so farm doesn't hang
+        end
+        
+        local isReady = part.BrickColor ~= BrickColor.new("Bright red")
+        print("[DEBUG] Robbery", childName, "ready status:", isReady, "| BrickColor:", part.BrickColor)
+        return isReady
     end)
-    return ok and result
+    
+    if not ok then
+        print("[DEBUG] Error checking robbery readiness:", result)
+        return true -- fallback to true to prevent hanging
+    end
+    
+    return result
 end
 
 local function bankIsOpen()
+    print("[DEBUG] Checking if bank is open...")
     return robberyReady("Bank")
 end
 
 -- deliver to hotel: TP there, auto-interact for 5 s, then reset character
 local function deliverAndReset()
+    print("[DEBUG] Delivering to hotel and resetting...")
     local char = LP.Character
     local hrp  = char and char:FindFirstChild("HumanoidRootPart")
     if hrp then
@@ -2285,10 +2305,12 @@ local function deliverAndReset()
 end
 
 local function runBankLoop()
+    print("[DEBUG] Starting Bank Farm Loop")
     while Cfg.bankFarm do
         -- wait for bank to be open
         local notifiedBank = false
         while Cfg.bankFarm and not bankIsOpen() do
+            print("[DEBUG] Bank not ready, waiting...")
             if not notifiedBank then
                 nyraNotify("Bank Locked", "Bank robbery isn't ready yet - keep the farm on, it'll kick in the second it opens!", 8)
                 notifiedBank = true
@@ -2296,6 +2318,7 @@ local function runBankLoop()
             task.wait(1.0)
         end
         if not Cfg.bankFarm then break end
+        print("[DEBUG] Bank is now open, starting farm...")
 
         -- flatten all wave coords into one list
         local allCoords = {}
@@ -2311,8 +2334,13 @@ local function runBankLoop()
             if not Cfg.bankFarm then break end
             local char = LP.Character
             local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-            if not hrp then task.wait(1.0); continue end
+            if not hrp then 
+                print("[DEBUG] Character/HumanoidRootPart not found, waiting...")
+                task.wait(1.0)
+                continue 
+            end
 
+            print("[DEBUG] Moving to bank position:", pos)
             if i == 1 then
                 hrp.CFrame = CFrame.new(pos.X, pos.Y, pos.Z)
                 task.wait(0.2)
@@ -2322,6 +2350,7 @@ local function runBankLoop()
             task.wait(0.15)
             
             -- Auto-interact with nearby prompts to pick up cash bags
+            print("[DEBUG] Interacting with prompts at bank position")
             interactWithNearbyPrompts()
             task.wait(1.5)   -- Allow time for interaction
             task.wait(0.2)
@@ -2329,14 +2358,17 @@ local function runBankLoop()
 
             if count % 8 == 0 then
                 if not Cfg.bankFarm then break end
+                print("[DEBUG] Delivering bank loot after 8 collections")
                 deliverAndReset()
             end
         end
 
         if not Cfg.bankFarm then break end
         -- deliver remainder if not on exact 8 boundary
+        print("[DEBUG] Delivering remaining bank loot")
         deliverAndReset()
     end
+    print("[DEBUG] Bank Farm Loop Ended")
 end
 
 -- ════════════════════════════════════════════════════════════
@@ -2406,20 +2438,27 @@ local JEWELRY_COORDS = {
 local JEWELRY_ENTRY = Vector3.new(-600, 3, -608)
 
 local function runBinsLoop()
+    print("[DEBUG] Starting Bins Farm Loop")
     local count = 0
     while Cfg.binsFarm do
         for idx = 1, #BINS_COORDS do
             if not Cfg.binsFarm then break end
             local char = LP.Character
             local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-            if not hrp then task.wait(1.0); continue end
+            if not hrp then 
+                print("[DEBUG] Character/HumanoidRootPart not found, waiting...")
+                task.wait(1.0)
+                continue 
+            end
 
             -- TP to bin position
             local pos = BINS_COORDS[idx]
+            print("[DEBUG] Moving to bin position:", pos)
             tweenToPos(hrp, pos)
             task.wait(0.3)    -- settle
             
             -- Auto-interact with nearby prompts to loot bin
+            print("[DEBUG] Interacting with bin prompts")
             interactWithNearbyPrompts()
             task.wait(3.0)        -- hold interaction
             task.wait(0.5)    -- brief gap before next TP
@@ -2427,43 +2466,56 @@ local function runBinsLoop()
             -- reset every 2 bins
             if count % 2 == 0 then
                 if not Cfg.binsFarm then break end
+                print("[DEBUG] Resetting after 2 bins")
                 resetAndWait()
             end
         end
         if not Cfg.binsFarm then break end
         -- full cycle done: reset + 12 s cooldown
+        print("[DEBUG] Full bins cycle completed, resetting")
         resetAndWait()
         local waited = 0
         while waited < 12 and Cfg.binsFarm do
-            task.wait(0.5); waited = waited + 0.5
+            task.wait(0.5)
+            waited = waited + 0.5
         end
     end
+    print("[DEBUG] Bins Farm Loop Ended")
 end
 
 -- ATM: TP → auto-interact to rob → auto-interact to collect items → reset every 2 ATMs
 local function runAtmLoop()
+    print("[DEBUG] Starting ATM Farm Loop")
     local count = 0
     while Cfg.atmFarm do
         for idx = 1, #ATM_COORDS do
             if not Cfg.atmFarm then break end
             local char = LP.Character
             local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-            if not hrp then task.wait(1.0); continue end
+            if not hrp then 
+                print("[DEBUG] Character/HumanoidRootPart not found, waiting...")
+                task.wait(1.0)
+                continue 
+            end
 
             -- tween to ATM
             local pos = ATM_COORDS[idx]
+            print("[DEBUG] Moving to ATM position:", pos)
             tweenToPos(hrp, pos)
             task.wait(0.25)   -- settle
 
             -- rob the ATM (auto-interact with prompts)
+            print("[DEBUG] Robbing ATM")
             interactWithNearbyPrompts()
             task.wait(0.7) -- Interaction time
             
             -- Collect item 1
+            print("[DEBUG] Collecting first ATM item")
             interactWithNearbyPrompts()
             task.wait(0.7) -- Collection time
             
             -- Collect item 2 (same prompt often handles both in newer versions)
+            print("[DEBUG] Collecting second ATM item")
             interactWithNearbyPrompts()
             task.wait(0.7) -- Collection time
             
@@ -2474,23 +2526,28 @@ local function runAtmLoop()
             -- reset every 2 ATMs to bank loot
             if count % 2 == 0 then
                 if not Cfg.atmFarm then break end
+                print("[DEBUG] Delivering ATM loot after 2 ATMs")
                 resetAndWait()
             end
         end
 
         if not Cfg.atmFarm then break end
         -- end of full cycle — reset any remainder then loop back
+        print("[DEBUG] ATM cycle completed, resetting")
         resetAndWait()
         task.wait(1.0)
     end
+    print("[DEBUG] ATM Farm Loop Ended")
 end
 
 local function jewelryIsOpen()
+    print("[DEBUG] Checking if jewelry is open...")
     return robberyReady("Jewelry")
 end
 
 -- Deliver jewelry loot to hotel and reset
 local function jewelryDeliverAndReset()
+    print("[DEBUG] Delivering jewelry loot and resetting...")
     local char = LP.Character
     local hrp  = char and char:FindFirstChild("HumanoidRootPart")
     if hrp then
@@ -2510,10 +2567,12 @@ local function jewelryDeliverAndReset()
 end
 
 local function runJewelryLoop()
+    print("[DEBUG] Starting Jewelry Farm Loop")
     while Cfg.jewelryFarm do
         -- wait for robbery to be open
         local notified = false
         while Cfg.jewelryFarm and not jewelryIsOpen() do
+            print("[DEBUG] Jewelry not ready, waiting...")
             if not notified then
                 nyraNotify("Jewelry Locked", "Jewelry robbery isn't ready yet — farm will start automatically when it opens!", 8)
                 notified = true
@@ -2521,11 +2580,17 @@ local function runJewelryLoop()
             task.wait(1.0)
         end
         if not Cfg.jewelryFarm then break end
+        print("[DEBUG] Jewelry is now open, starting farm...")
 
         -- TP to store entry
         local char = LP.Character
         local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-        if not hrp then task.wait(1.0); continue end
+        if not hrp then 
+            print("[DEBUG] Character/HumanoidRootPart not found, waiting...")
+            task.wait(1.0)
+            continue 
+        end
+        print("[DEBUG] Moving to jewelry entry point")
         tweenToPos(hrp, JEWELRY_ENTRY)
         task.wait(0.4)
 
@@ -2535,12 +2600,18 @@ local function runJewelryLoop()
             if not Cfg.jewelryFarm then break end
             char = LP.Character
             hrp  = char and char:FindFirstChild("HumanoidRootPart")
-            if not hrp then task.wait(1.0); continue end
+            if not hrp then 
+                print("[DEBUG] Character/HumanoidRootPart not found, waiting...")
+                task.wait(1.0)
+                continue 
+            end
 
+            print("[DEBUG] Moving to jewelry case position:", pos)
             tweenToPos(hrp, pos)
             task.wait(0.18)           -- settle before interacting
             
             -- Auto-interact to smash/loot the case
+            print("[DEBUG] Interacting with jewelry case")
             interactWithNearbyPrompts()
             task.wait(1.0)      -- interaction time
             task.wait(0.12)
@@ -2549,12 +2620,14 @@ local function runJewelryLoop()
             -- mid-loop delivery every 10 cases to avoid dropping loot on reset
             if collected % 10 == 0 and i < #JEWELRY_COORDS then
                 if not Cfg.jewelryFarm then break end
+                print("[DEBUG] Delivering jewelry loot after 10 cases")
                 jewelryDeliverAndReset()
                 -- re-acquire char after reset
                 char = LP.Character
                 hrp  = char and char:FindFirstChild("HumanoidRootPart")
                 if not hrp then break end
                 -- jump back to where we left off
+                print("[DEBUG] Returning to jewelry case position after delivery")
                 tweenToPos(hrp, pos)
                 task.wait(0.3)
             end
@@ -2562,23 +2635,52 @@ local function runJewelryLoop()
 
         if not Cfg.jewelryFarm then break end
         -- deliver whatever is left after finishing all cases
+        print("[DEBUG] Delivering remaining jewelry loot")
         jewelryDeliverAndReset()
     end
+    print("[DEBUG] Jewelry Farm Loop Ended")
 end
 
 -- Casino vault check coordinate
 local CASINO_START_POS = Vector3.new(-1146, 4, -764)
 
+-- Define CASINO_COORDS for slot machines
+local CASINO_COORDS = {
+    Vector3.new(-1159, 4, -764),
+    Vector3.new(-1154, 4, -764),
+    Vector3.new(-1149, 4, -764),
+    Vector3.new(-1144, 4, -764),
+    Vector3.new(-1139, 4, -764),
+    Vector3.new(-1134, 4, -764),
+    Vector3.new(-1129, 4, -764),
+    Vector3.new(-1124, 4, -764),
+    Vector3.new(-1119, 4, -764),
+    Vector3.new(-1114, 4, -764),
+    Vector3.new(-1159, 4, -771),
+    Vector3.new(-1154, 4, -771),
+    Vector3.new(-1149, 4, -771),
+    Vector3.new(-1144, 4, -771),
+    Vector3.new(-1139, 4, -771),
+    Vector3.new(-1134, 4, -771),
+    Vector3.new(-1129, 4, -771),
+    Vector3.new(-1124, 4, -771),
+    Vector3.new(-1119, 4, -771),
+    Vector3.new(-1114, 4, -771),
+}
+
 local function casinoIsOpen()
+    print("[DEBUG] Checking if casino is open...")
     return robberyReady("Casino")
 end
 
 -- Casino farm loop
 local function runCasinoLoop()
+    print("[DEBUG] Starting Casino Farm Loop")
     while Cfg.casinoFarm do
         -- wait for casino robbery to be ready
         local notifiedCasino = false
         while Cfg.casinoFarm and not casinoIsOpen() do
+            print("[DEBUG] Casino not ready, waiting...")
             if not notifiedCasino then
                 nyraNotify("Casino Locked", "Casino robbery isn't ready yet - keep the farm on, it'll start automatically when it opens!", 8)
                 notifiedCasino = true
@@ -2586,11 +2688,17 @@ local function runCasinoLoop()
             task.wait(1.0)
         end
         if not Cfg.casinoFarm then break end
+        print("[DEBUG] Casino is now open, starting farm...")
 
         -- TP to casino start
         local char = LP.Character
         local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-        if not hrp then task.wait(1); continue end
+        if not hrp then 
+            print("[DEBUG] Character/HumanoidRootPart not found, waiting...")
+            task.wait(1.0)
+            continue 
+        end
+        print("[DEBUG] Moving to casino start position")
         tweenToPos(hrp, CASINO_START_POS)
         task.wait(0.4)
 
@@ -2600,8 +2708,13 @@ local function runCasinoLoop()
             if not Cfg.casinoFarm then break end
             char = LP.Character
             hrp  = char and char:FindFirstChild("HumanoidRootPart")
-            if not hrp then task.wait(1.0); continue end
+            if not hrp then 
+                print("[DEBUG] Character/HumanoidRootPart not found, waiting...")
+                task.wait(1.0)
+                continue 
+            end
 
+            print("[DEBUG] Moving to casino slot position:", pos)
             if i == 1 then
                 hrp.CFrame = CFrame.new(pos.X, pos.Y, pos.Z)
                 task.wait(0.2)
@@ -2611,6 +2724,7 @@ local function runCasinoLoop()
             task.wait(0.15)
             
             -- Auto-interact with casino machines
+            print("[DEBUG] Interacting with casino machine")
             local startTime = tick()
             while tick() - startTime < 2.5 do
                 interactWithNearbyPrompts()
@@ -2622,6 +2736,7 @@ local function runCasinoLoop()
 
             if casinoCount % 8 == 0 then
                 if not Cfg.casinoFarm then break end
+                print("[DEBUG] Delivering casino winnings after 8 slots")
                 local c2 = LP.Character
                 local h2 = c2 and c2:FindFirstChild("HumanoidRootPart")
                 if h2 then
@@ -2643,6 +2758,7 @@ local function runCasinoLoop()
 
         if not Cfg.casinoFarm then break end
         -- deliver remainder after full cycle
+        print("[DEBUG] Delivering remaining casino winnings")
         local c2 = LP.Character
         local h2 = c2 and c2:FindFirstChild("HumanoidRootPart")
         if h2 then
@@ -2660,6 +2776,7 @@ local function runCasinoLoop()
         end
         resetAndWait()
     end
+    print("[DEBUG] Casino Farm Loop Ended")
 end
 
 -- ════════════════════════════════════════════════════════════
@@ -2702,10 +2819,12 @@ local GUNPOWDER_COORDS = {
 }
 
 local function runGunpowderLoop()
+    print("[DEBUG] Starting Gunpowder Farm Loop")
     while Cfg.gunpowderFarm do
         -- check if factory robbery is ready
         local notifiedGun = false
         while Cfg.gunpowderFarm and not robberyReady("Factory") do
+            print("[DEBUG] Factory not ready, waiting...")
             if not notifiedGun then
                 nyraNotify("Factory Locked", "Gunpowder robbery isn't ready yet - keep the farm on, it'll start automatically when it opens!", 8)
                 notifiedGun = true
@@ -2713,11 +2832,17 @@ local function runGunpowderLoop()
             task.wait(1.0)
         end
         if not Cfg.gunpowderFarm then break end
+        print("[DEBUG] Factory is now open, starting farm...")
 
         -- TP to start position
         local char = LP.Character
         local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-        if not hrp then task.wait(1.0); continue end
+        if not hrp then 
+            print("[DEBUG] Character/HumanoidRootPart not found, waiting...")
+            task.wait(1.0)
+            continue 
+        end
+        print("[DEBUG] Moving to gunpowder start position")
         tweenToPos(hrp, GUNPOWDER_START)
         task.wait(0.4)
 
@@ -2727,8 +2852,13 @@ local function runGunpowderLoop()
             if not Cfg.gunpowderFarm then break end
             char = LP.Character
             hrp  = char and char:FindFirstChild("HumanoidRootPart")
-            if not hrp then task.wait(1.0); continue end
+            if not hrp then 
+                print("[DEBUG] Character/HumanoidRootPart not found, waiting...")
+                task.wait(1.0)
+                continue 
+            end
 
+            print("[DEBUG] Moving to gunpowder bag position:", pos)
             if i == 1 then
                 hrp.CFrame = CFrame.new(pos.X, pos.Y, pos.Z)
                 task.wait(0.2)
@@ -2738,6 +2868,7 @@ local function runGunpowderLoop()
             task.wait(0.15)
             
             -- Auto-interact with gunpowder bags
+            print("[DEBUG] Interacting with gunpowder bag")
             local startTime = tick()
             while tick() - startTime < 1.0 do
                 interactWithNearbyPrompts()
@@ -2750,6 +2881,7 @@ local function runGunpowderLoop()
             -- every 8 bags: deliver to hotel, auto-interact, reset
             if count % 8 == 0 then
                 if not Cfg.gunpowderFarm then break end
+                print("[DEBUG] Delivering gunpowder after 8 bags")
                 local c2 = LP.Character
                 local h2 = c2 and c2:FindFirstChild("HumanoidRootPart")
                 if h2 then
@@ -2771,6 +2903,7 @@ local function runGunpowderLoop()
 
         if not Cfg.gunpowderFarm then break end
         -- deliver remainder after full cycle
+        print("[DEBUG] Delivering remaining gunpowder")
         local c2 = LP.Character
         local h2 = c2 and c2:FindFirstChild("HumanoidRootPart")
         if h2 then
@@ -2788,6 +2921,7 @@ local function runGunpowderLoop()
         end
         resetAndWait()
     end
+    print("[DEBUG] Gunpowder Farm Loop Ended")
 end
 
 -- ════════════════════════════════════════════════════════════
