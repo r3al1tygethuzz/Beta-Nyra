@@ -316,7 +316,7 @@ local BarLabel = N("TextLabel",{
     BackgroundTransparency=1,
     Text="",
     TextColor3=Color3.fromRGB(45,45,45),
-    TextSize=9, Font=Enum.Font.SourceSansSemibold,
+    TextSize=9, Font=Enum.Font.GothamSemibold,
     TextXAlignment=Enum.TextXAlignment.Center,
     TextTransparency=1, ZIndex=1005, Parent=BarTrack
 })
@@ -2217,7 +2217,7 @@ local function robberyReady(childName)
             end
         end
         if not part then return true end  -- can't find button, assume open so farm doesn't hang
-        return part.BrickColor ~= BrickColor.new("Bright red")
+        return head.BrickColor ~= BrickColor.new("Bright red")
     end)
     return ok and result
 end
@@ -2357,28 +2357,6 @@ local JEWELRY_COORDS = {
 -- entry point — outside the jewelry store door
 local JEWELRY_ENTRY = Vector3.new(-600, 3, -608)
 
-local CASINO_COORDS = {
-    Vector3.new(-1154, 4, -775),
-    Vector3.new(-1156, 4, -781),
-    Vector3.new(-1161, 4, -781),
-    Vector3.new(-1159, 4, -786),
-    Vector3.new(-1154, 4, -789),
-    Vector3.new(-1153, 4, -793),
-    Vector3.new(-1151, 4, -785),
-    Vector3.new(-1143, 7, -784),
-    Vector3.new(-1144, 7, -788),
-    Vector3.new(-1143, 7, -790),
-    Vector3.new(-1148, 4, -798),
-    Vector3.new(-1142, 4, -800),
-    Vector3.new(-1157, 4, -798),
-    Vector3.new(-1159, 4, -800),
-    Vector3.new(-1164, 4, -795),
-    Vector3.new(-1165, 4, -787),
-    Vector3.new(-1173, 7, -783),
-    Vector3.new(-1172, 7, -786),
-}
-
--- Bins: TP → settle → hold R 3 s → teleport to next bin, reset every 3 bins
 local function runBinsLoop()
     local count = 0
     while Cfg.binsFarm do
